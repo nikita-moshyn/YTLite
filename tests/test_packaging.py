@@ -16,7 +16,10 @@ ROOT = Path(__file__).resolve().parents[1]
 PATCH_NAME = "YTLBackgroundPlaybackFix.dylib"
 SELECTORS = (b"setBackgroundingForcedDisabled:\0"
              b"pictureInPictureControllerShouldProhibitBackgroundAudioPlayback:\0"
-             b"setProhibitsBackgroundAudioPlayback:\0")
+             b"setProhibitsBackgroundAudioPlayback:\0"
+             b"showBedtimeReminder\0"
+             b"isBedtimeReminderAllowedToTrigger\0"
+             b"showReminder:withPanelCommand:completionBlock:\0")
 
 
 def load(name):

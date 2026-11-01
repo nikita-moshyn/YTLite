@@ -46,11 +46,12 @@ exports:
 TBD
 
 perl "$logos" BackgroundPlayback.x > "$build_dir/BackgroundPlayback.m"
+perl "$logos" BedtimeReminders.x > "$build_dir/BedtimeReminders.m"
 sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
 xcrun --sdk iphoneos clang -target arm64-apple-ios13.0 -isysroot "$sdk" \
     -dynamiclib -fobjc-arc -fblocks -O2 -Wall -Wextra -Werror \
     -I "$repo_dir" -I "$repo_dir/tests/include" \
-    "$build_dir/BackgroundPlayback.m" \
+    "$build_dir/BackgroundPlayback.m" "$build_dir/BedtimeReminders.m" \
     -L "$build_dir" -lYTLite -F "$build_dir" -framework CydiaSubstrate \
     -framework Foundation \
     -install_name '@rpath/YTLBackgroundPlaybackFix.dylib' \

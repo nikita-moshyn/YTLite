@@ -72,10 +72,13 @@ def verify(ipa, patch):
             raise ValueError("Packaged patch does not match the patch built from this branch")
         required = (b"setBackgroundingForcedDisabled:",
                     b"pictureInPictureControllerShouldProhibitBackgroundAudioPlayback:",
-                    b"setProhibitsBackgroundAudioPlayback:")
+                    b"setProhibitsBackgroundAudioPlayback:",
+                    b"showBedtimeReminder",
+                    b"isBedtimeReminderAllowedToTrigger",
+                    b"showReminder:withPanelCommand:completionBlock:")
         selectors = sections[("__TEXT", "__objc_methname")].split(b"\0")
         if any(selector not in selectors for selector in required):
-            raise ValueError("Packaged patch is missing the v2 screen-lock/PiP guards")
+            raise ValueError("Packaged patch is missing the v2 playback guards or bedtime popup blocker")
         for name in dependencies:
             if name.startswith("@rpath/"):
                 candidates = (app + "/Frameworks/" + name[7:], app + "/" + name[7:])

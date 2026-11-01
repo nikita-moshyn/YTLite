@@ -46,7 +46,7 @@ on:
         default: false
 
       enable_background_playback_fix:
-        description: "Build and inject the screen-lock/background audio fix from this branch"
+        description: "Build playback fixes and block bedtime popups from this branch"
         type: boolean
         required: true
         default: true
