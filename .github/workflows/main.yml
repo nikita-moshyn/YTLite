@@ -64,7 +64,7 @@ on:
         type: string
 
       tweak_version:
-        description: "The version of the tweak to use. Enter the version manually from dayanch96/YTLite/releases or leave default"
+        description: "Current reviewed YTPlus release; account removal rejects unreviewed binaries"
         default: "5.2.2"
         required: true
         type: string

@@ -52,8 +52,13 @@ A flexible enhancer for YouTube on iOS, featuring over hundred customizable opti
 **Used open-source libraries are listed in the Open Source Libraries section**
 
 > [!NOTE]
-> Starting from version 5.2, YTPlus requires a subscription.  
-> The last free version is [5.2b4](https://github.com/dayanch96/YTLite/releases/tag/v5.2b4).
+> This fork removes the account client from the **current public release, 5.2.2**.
+> Login, subscription verification, token exchange, device management, account reminders,
+> and requests to the developer's account service are disabled before injection.
+> Settings and tweak initialization work locally. No YTLite/YTPlus account or subscription is used.
+> The build also installs a service URL blocker and removes the Account section from settings.
+> It never falls back to an older release; unreviewed binaries fail the build.
+> See [implementation and validation](tests/README.md#account-removal-from-the-current-release).
 
 ## FAQ
 - [🇺🇸 English FAQ](FAQs/FAQ_EN.md)
@@ -65,7 +70,7 @@ A flexible enhancer for YouTube on iOS, featuring over hundred customizable opti
 Review by [@qbap](https://github.com/qbap) on ONE Jailbreak: https://onejailbreak.com/blog/youtube-plus/
 
 ## How to build a YouTube Plus app using Github actions
-The **Create YouTube Plus app** workflow builds and injects this branch's background audio compatibility patch by default, including the direct-lock and PiP-to-lock paths. It verifies the patch is present in the resulting IPA before creating a release. Optional `extra_tweaks_urls` accepts additional `.deb`/`.dylib` download URLs. See [background playback validation and build details](tests/README.md).
+The **Create YouTube Plus app** workflow sanitizes the current YTPlus binary and always builds/injects this branch's account privacy patch. The background audio and bedtime reminder patch is included by default. The final IPA must pass account removal, dependency, and patch verification before a draft release is created. Neither patch needs an additional URL. Optional `extra_tweaks_urls` accepts other `.deb`/`.dylib` download URLs. The beta and Cyan/TrollFools workflows also require the sanitized client and privacy patch. See [validation and build details](tests/README.md).
 
 > [!NOTE]
 > If this your first time, complete following steps before starting:

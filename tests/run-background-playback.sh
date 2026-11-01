@@ -22,3 +22,12 @@ for variant in 0 1 2 3 4; do
         -o "$test_dir/test-$variant"
     "$test_dir/test-$variant"
 done
+
+perl "$logos" BedtimeReminders.x > "$test_dir/BedtimeReminders.m"
+for variant in 1 2 3; do
+    xcrun --sdk macosx clang -fobjc-arc -fblocks -Wall -Wextra -Werror \
+        -I "$repo_dir/tests/include" -DREMINDER_VARIANT="$variant" \
+        "$test_dir/BedtimeReminders.m" "$repo_dir/tests/bedtime_reminders.m" \
+        -framework Foundation -Wl,-ignore_auto_link -o "$test_dir/bedtime-$variant"
+    "$test_dir/bedtime-$variant"
+done

@@ -25,9 +25,12 @@ def macho(data):
         cmd, length = struct.unpack_from("<II", data, offset)
         if length < 8 or offset + length > 32 + size:
             raise ValueError("Invalid Mach-O load command")
-        if cmd in (0xC, 0x80000018):
+        if cmd in (0xC, 0x80000018, 0x8000001F, 0x80000023, 0x20):
             name = struct.unpack_from("<I", data, offset + 8)[0]
-            libraries.append(data[offset + name:offset + length].split(b"\0")[0].decode())
+            library = data[offset + name:offset + length].split(b"\0")[0].decode()
+            if library in libraries:
+                raise ValueError(f"duplicate linked dylib '{library}'")
+            libraries.append(library)
         if cmd == 0x2C and struct.unpack_from("<I", data, offset + 16)[0]:
             raise ValueError("IPA executable is still encrypted")
         if cmd == 0x19:

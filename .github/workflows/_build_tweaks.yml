@@ -35,7 +35,7 @@ on:
       enable_background_playback_fix:
         type: boolean
         required: false
-        default: false
+        default: true
 
       tweak_version:
         type: string
@@ -54,15 +54,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-        if: ${{ inputs.enable_localization || inputs.enable_background_playback_fix }}
 
-      - name: Set up Logos for background playback patch
-        if: ${{ inputs.enable_background_playback_fix }}
+      - name: Set up Logos for local patches
         uses: actions/checkout@v6
         with:
           repository: theos/logos
           ref: 365a4e7028234e90bc2cbc724e5c87607130d3b3
           path: background-logos
+
+      - name: Test and build mandatory account privacy patch
+        env:
+          LOGOS: ${{ github.workspace }}/background-logos/bin/logos.pl
+        run: |
+          tests/run-accountless.sh
+          python3 -m unittest discover -s tests -p 'test_*.py'
+          bash scripts/build-accountless.sh "$GITHUB_WORKSPACE/YTLAccountless.dylib"
 
       - name: Test and build background playback patch from this branch
         if: ${{ inputs.enable_background_playback_fix }}
@@ -70,7 +76,6 @@ jobs:
           LOGOS: ${{ github.workspace }}/background-logos/bin/logos.pl
         run: |
           tests/run-background-playback.sh
-          python3 -m unittest discover -s tests -p 'test_*.py'
           scripts/build-background-playback-fix.sh "$GITHUB_WORKSPACE/YTLBackgroundPlaybackFix.dylib"
 
       - name: Install Dependencies
@@ -249,6 +254,19 @@ jobs:
           find . -type f -not -path "./DEBIAN/*" -exec md5sum {} + | sort -k 2 | sed 's/\.\/\(.*\)/\1/' > DEBIAN/md5sums
           cd ../
           dpkg-deb --root-owner-group -b debdir ytplus.deb
+
+      - name: Remove the current YTPlus account client before injection
+        run: |
+          YTPLUS_TEST_DEB="$GITHUB_WORKSPACE/ytplus.deb" python3 -m unittest discover -s tests -p 'test_account_removal.py'
+          python3 -m venv native-check-env
+          native-check-env/bin/python -m pip install unicorn==2.1.4
+          native-check-env/bin/python tests/check-native-accountless.py ytplus.deb
+          dpkg-deb -R ytplus.deb accountless-deb
+          python3 scripts/remove-account.py accountless-deb
+          codesign --force --sign - accountless-deb/Library/MobileSubstrate/DynamicLibraries/YTLite.dylib
+          (cd accountless-deb && find . -type f -not -path './DEBIAN/*' -exec md5sum {} + | sort -k 2 | sed 's|  ./|  |' > DEBIAN/md5sums)
+          dpkg-deb --root-owner-group -b accountless-deb ytplus.deb
+          python3 scripts/verify-accountless.py --deb ytplus.deb
 
       - name: Upload built debs as artifacts
         uses: actions/upload-artifact@v7

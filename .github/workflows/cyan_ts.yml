@@ -93,6 +93,8 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/checkout@v6
+
       - name: Download built debs
         uses: actions/download-artifact@v8
         with:
@@ -115,16 +117,22 @@ jobs:
       - name: Generate .cyan file
         if: ${{ github.event.inputs.create_cyan }}
         run: |
-          tweaks="ytplus.deb OpenYoutubeSafariExtension.appex"
-          for f in *.deb; do
-            [ -f "$f" ] && tweaks="$tweaks $f"
+          python3 scripts/verify-accountless.py --deb ytplus.deb
+          test -f YTLAccountless.dylib
+          shopt -s nullglob
+          tweaks=(ytplus.deb YTLAccountless.dylib)
+          for f in *.deb *.dylib *.appex; do
+            [[ "$f" == ytplus.deb || "$f" == YTLAccountless.dylib ]] || tweaks+=("$f")
           done
-          cgen -uwef $tweaks -n "${{ github.event.inputs.display_name }}" -b ${{ github.event.inputs.bundle_id }} -o cyan_YouTubePlus_${{ github.event.inputs.tweak_version }}.cyan
+          cgen -uwef "${tweaks[@]}" -n "${{ inputs.display_name }}" -b "${{ inputs.bundle_id }}" -o "cyan_YouTubePlus_${{ inputs.tweak_version }}.cyan"
 
       - name: Generate .zip file for TrollFools
         if: ${{ github.event.inputs.create_tf }}
         run: |
+          python3 scripts/verify-accountless.py --deb ytplus.deb
+          test -f YTLAccountless.dylib
           mkdir -p ytp_tf
+          cp ./*.dylib ytp_tf/
           for f in *.deb; do
             if [ -f "$f" ]; then
               mkdir -p tmp_deb

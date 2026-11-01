@@ -1,0 +1,272 @@
+{
+  "id": "ytplus-5.2.2-local-v1",
+  "version": "5.2.2",
+  "sections": {
+    "__TEXT,__text": {
+      "size": 12118304,
+      "sha256": "73fabfb984369100e7785d3dc5e726140d0f973f0cc31d66632d12d91ad717c2"
+    },
+    "__TEXT,__const": {
+      "size": 3000352,
+      "sha256": "cb257081fe7a3726d2ab2bc1c1b77b39d36a8153ccca69e11241cdef38e9d3e3"
+    },
+    "__DATA,__data": {
+      "size": 867776,
+      "sha256": "106755666d976c7900ca22f4250fb11c9eaf13c0e3e3423dca99189d38aaeb9b"
+    }
+  },
+  "patches": [
+    {
+      "offset": 144360,
+      "size": 556,
+      "kind": "local_initialization"
+    },
+    {
+      "offset": 145024,
+      "size": 12,
+      "return": 0
+    },
+    {
+      "offset": 145036,
+      "size": 52,
+      "return": 1
+    },
+    {
+      "offset": 145088,
+      "size": 512,
+      "return": 0
+    },
+    {
+      "offset": 145864,
+      "size": 148,
+      "return": 1
+    },
+    {
+      "offset": 146276,
+      "size": 60,
+      "return": 0
+    },
+    {
+      "offset": 146336,
+      "size": 764,
+      "return": 0
+    },
+    {
+      "offset": 147100,
+      "size": 84,
+      "return": 0
+    },
+    {
+      "offset": 147184,
+      "size": 2668,
+      "return": 0
+    },
+    {
+      "offset": 149852,
+      "size": 1496,
+      "return": 0
+    },
+    {
+      "offset": 151348,
+      "size": 444,
+      "return": 0
+    },
+    {
+      "offset": 151792,
+      "size": 220,
+      "return": 0
+    },
+    {
+      "offset": 152012,
+      "size": 3984,
+      "return": 0
+    },
+    {
+      "offset": 155996,
+      "size": 536,
+      "return": 0
+    },
+    {
+      "offset": 156532,
+      "size": 336,
+      "return": 0
+    },
+    {
+      "offset": 156868,
+      "size": 2492,
+      "return": 0
+    },
+    {
+      "offset": 159360,
+      "size": 48,
+      "return": 0
+    },
+    {
+      "offset": 159408,
+      "size": 404,
+      "return": 0
+    },
+    {
+      "offset": 159812,
+      "size": 52,
+      "return": 0
+    },
+    {
+      "offset": 159864,
+      "size": 1004,
+      "return": 0
+    },
+    {
+      "offset": 160868,
+      "size": 980,
+      "return": 0
+    },
+    {
+      "offset": 161848,
+      "size": 648,
+      "return": 0
+    },
+    {
+      "offset": 162496,
+      "size": 1332,
+      "return": 0
+    },
+    {
+      "offset": 163828,
+      "size": 652,
+      "return": 0
+    },
+    {
+      "offset": 164480,
+      "size": 1140,
+      "return": 0
+    },
+    {
+      "offset": 165620,
+      "size": 204,
+      "return": 0
+    },
+    {
+      "offset": 165824,
+      "size": 404,
+      "return": 0
+    },
+    {
+      "offset": 166228,
+      "size": 872,
+      "return": 0
+    },
+    {
+      "offset": 167100,
+      "size": 516,
+      "return": 0
+    },
+    {
+      "offset": 167616,
+      "size": 880,
+      "return": 0
+    },
+    {
+      "offset": 168496,
+      "size": 136,
+      "return": 0
+    },
+    {
+      "offset": 168632,
+      "size": 11116,
+      "return": 0
+    },
+    {
+      "offset": 179748,
+      "size": 44,
+      "return": 0
+    },
+    {
+      "offset": 179792,
+      "size": 2092,
+      "return": 0
+    },
+    {
+      "offset": 181888,
+      "size": 8660,
+      "return": 0
+    },
+    {
+      "offset": 190548,
+      "size": 8556,
+      "return": 0
+    },
+    {
+      "offset": 199104,
+      "size": 700,
+      "return": 0
+    },
+    {
+      "offset": 199804,
+      "size": 44,
+      "return": 0
+    },
+    {
+      "offset": 199848,
+      "size": 52,
+      "return": 0
+    },
+    {
+      "offset": 199900,
+      "size": 520,
+      "return": 0
+    },
+    {
+      "offset": 200420,
+      "size": 808,
+      "return": 0
+    },
+    {
+      "offset": 229076,
+      "size": 76,
+      "return": 0
+    },
+    {
+      "offset": 229152,
+      "size": 6160,
+      "return": 0
+    },
+    {
+      "offset": 1160912,
+      "size": 1724,
+      "return": 0
+    },
+    {
+      "offset": 1542760,
+      "size": 2868,
+      "return": 0
+    },
+    {
+      "offset": 1550888,
+      "size": 912,
+      "return": 0
+    },
+    {
+      "offset": 1646468,
+      "size": 2876,
+      "return": 0
+    },
+    {
+      "offset": 1841912,
+      "size": 152,
+      "return": 0
+    }
+  ],
+  "blocked_domains": [
+    "dvntm.com"
+  ],
+  "account_range": [
+    145024,
+    201228
+  ],
+  "preserved_local_getters": [
+    145600,
+    146012
+  ],
+  "output_code_sha256": "f97078603078602d7fc90efbaf8ccd1ce659f959054c8ed84daf116da295664e"
+}

@@ -7,6 +7,7 @@ from pathlib import Path
 import plistlib
 import struct
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -79,7 +80,7 @@ class PackagingTests(unittest.TestCase):
 
     def test_missing_or_duplicate_injection_is_rejected(self):
         for libraries in ((), ("@rpath/" + PATCH_NAME,) * 2):
-            with self.subTest(libraries=libraries), self.assertRaisesRegex(ValueError, "exactly once"):
+            with self.subTest(libraries=libraries), self.assertRaisesRegex(ValueError, "exactly once|duplicate linked"):
                 verify.verify(self.ipa(injected=libraries), self.patch_file)
 
     def test_stale_patch_is_rejected(self):
@@ -109,8 +110,7 @@ class PackagingTests(unittest.TestCase):
         original = binary(("@rpath/" + PATCH_NAME, "@rpath/YTLite.dylib", "@rpath/" + PATCH_NAME), b"unchanged code")
         cleaned = prepare.remove_patch_loads(original)
         libraries, sections = verify.macho(cleaned)
-        self.assertEqual(libraries, ["/usr/lib/libSystem.B.dylib", "@rpath/YTLite.dylib", "/usr/lib/libSystem.B.dylib"])
-        self.assertEqual(libraries.index("@rpath/YTLite.dylib"), 1) # Preserve its original binding ordinal.
+        self.assertEqual(libraries, ["@rpath/YTLite.dylib"])
         self.assertEqual(sections[("__TEXT", "__text")], b"unchanged code")
         self.assertEqual(len(cleaned), len(original))
 
@@ -120,27 +120,63 @@ class PackagingTests(unittest.TestCase):
         prepare.prepare(source, destination)
         with zipfile.ZipFile(destination) as archive:
             self.assertNotIn("Payload/YouTube.app/Frameworks/" + PATCH_NAME, archive.namelist())
-            self.assertEqual(verify.macho(archive.read("Payload/YouTube.app/YouTube"))[0], ["/usr/lib/libSystem.B.dylib"] * 2)
+            self.assertEqual(verify.macho(archive.read("Payload/YouTube.app/YouTube"))[0], [])
         with zipfile.ZipFile(source) as archive:
             self.assertIn("Payload/YouTube.app/Frameworks/" + PATCH_NAME, archive.namelist())
 
     def test_cyan_receives_files_once_with_spaces_preserved(self):
         (self.root / "ytplus.deb").touch()
         (self.root / "Extra audio.deb").touch()
+        (self.root / "YTLAccountless.dylib").touch()
         (self.root / "OpenYoutubeSafariExtension.appex").mkdir()
         fake = self.root / "cyan"
         fake.write_text('#!/bin/bash\nprintf "%s\\0" "$@" > "$ARGS_FILE"\n')
         fake.chmod(0o755)
+        # Substitute the external verifier only for this shell-argument unit
+        # test. Real sanitization/injection are tested against the actual DEB.
+        python = self.root / "python3"
+        python.write_text('#!/bin/bash\nif [[ "$1" == *verify-accountless.py ]]; then exit 0; fi\nexec '
+                          + __import__('shlex').quote(sys.executable) + ' "$@"\n')
+        python.chmod(0o755)
         captured = self.root / "arguments"
         environment = dict(os.environ, PATH=str(self.root) + os.pathsep + os.environ["PATH"],
                            ARGS_FILE=str(captured), REQUIRE_BACKGROUND_FIX="true")
         subprocess.run([str(ROOT / "scripts/inject-tweaks.sh"), str(self.ipa()), "output.ipa", "My YouTube", "test.app"],
                        cwd=self.root, env=environment, check=True)
         args = captured.read_bytes().split(b"\0")[:-1]
-        for name in (b"ytplus.deb", PATCH_NAME.encode(), b"Extra audio.deb", b"OpenYoutubeSafariExtension.appex"):
+        for name in (b"ytplus.deb", PATCH_NAME.encode(), b"YTLAccountless.dylib", b"Extra audio.deb", b"OpenYoutubeSafariExtension.appex"):
             self.assertEqual(args.count(name), 1)
         self.assertIn(b"My YouTube", args)
         self.assertFalse(any(b"*" in argument for argument in args))
+
+    def test_missing_account_patch_is_always_rejected(self):
+        (self.root / "ytplus.deb").touch()
+        result = subprocess.run([str(ROOT / "scripts/inject-tweaks.sh"), "in.ipa", "out.ipa", "YouTube", "test"],
+                                cwd=self.root, env=dict(os.environ, REQUIRE_BACKGROUND_FIX="false"), capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b"mandatory YTLAccountless", result.stderr)
+
+    def test_duplicate_system_libraries_from_the_crashing_ipa_are_removed(self):
+        libraries = ("/usr/lib/libz.1.dylib", "/usr/lib/libSystem.B.dylib", "@rpath/YTLite.dylib",
+                     "/usr/lib/libz.1.dylib", "/usr/lib/libSystem.B.dylib", "@rpath/" + PATCH_NAME)
+        original = binary(libraries)
+        with self.assertRaisesRegex(ValueError, "duplicate linked dylib"):
+            verify.macho(original)
+        cleaned = prepare.remove_patch_loads(original, prepare.REPLACED)
+        self.assertEqual(verify.macho(cleaned)[0], list(libraries[:2]))
+        self.assertEqual(len(cleaned), len(original))
+
+    def test_removal_cannot_renumber_a_live_chained_import(self):
+        for referenced in (1, 2):
+            original = bytearray(binary(("@rpath/" + PATCH_NAME, "/usr/lib/libz.1.dylib")))
+            offset = len(original) + 16
+            fixups = struct.pack("<7I", 0, 0, 28, 32, 1, 1, 0) + struct.pack("<I", referenced)
+            command = struct.pack("<4I", 0x80000034, 16, offset, len(fixups))
+            count, size = struct.unpack_from("<II", original, 16)
+            struct.pack_into("<II", original, 16, count + 1, size + 16)
+            original += command + fixups
+            with self.assertRaisesRegex(ValueError, "live symbol bindings"):
+                prepare.remove_patch_loads(bytes(original))
 
     def test_enabled_but_missing_patch_fails_before_cyan(self):
         (self.root / "ytplus.deb").touch()
