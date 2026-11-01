@@ -5,15 +5,6 @@ static UIImage *YTImageNamed(NSString *imageName) {
 }
 
 // YouTube-X (https://github.com/PoomSmart/YouTube-X/)
-// Background Playback
-%hook YTIPlayabilityStatus
-- (BOOL)isPlayableInBackground { return ytlBool(@"backgroundPlayback") ? YES : NO; }
-%end
-
-%hook MLVideo
-- (BOOL)playableInBackground { return ytlBool(@"backgroundPlayback") ? YES : NO; }
-%end
-
 // Disable Ads
 %hook YTIPlayerResponse
 - (BOOL)isMonetized { return ytlBool(@"noAds") ? NO : YES; }
