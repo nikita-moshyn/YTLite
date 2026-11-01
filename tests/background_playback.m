@@ -9,6 +9,11 @@ static BOOL tweakEnabled;
 static BOOL nativeAllowed;
 static NSUInteger originalCalls;
 static NSUInteger installedHooks;
+static NSUInteger stateUpdates;
+
+@protocol BackgroundPolicy
+- (BOOL)isBackgroundableByUserSettings;
+@end
 
 @implementation YTLUserDefaults
 + (YTLUserDefaults *)standardUserDefaults {
@@ -40,6 +45,63 @@ static NSUInteger installedHooks;
 @implementation MLVideo
 - (BOOL)playableInBackground { originalCalls++; return nativeAllowed; }
 @end
+
+@interface YTPlaybackData : NSObject
+- (BOOL)isPlayableInBackground;
+@end
+@implementation YTPlaybackData
+- (BOOL)isPlayableInBackground { originalCalls++; return nativeAllowed; }
+@end
+
+@interface YTSingleVideoController : NSObject
+@property (nonatomic, strong) YTPlaybackData *playbackData;
+@property (nonatomic, strong) id<BackgroundPolicy> policy;
+@property (nonatomic) BOOL backgroundingForcedDisabled;
+@property (nonatomic) BOOL currentlyBackgroundable;
+@end
+@implementation YTSingleVideoController
+- (void)setBackgroundingForcedDisabled:(BOOL)disabled {
+    _backgroundingForcedDisabled = disabled;
+    // Model the three checks in 21.43.5's updateCurrentlyBackgroundable.
+    self.currentlyBackgroundable = !disabled && [self.policy isBackgroundableByUserSettings]
+        && [self.playbackData isPlayableInBackground];
+    stateUpdates++;
+}
+@end
+
+@interface NativePiPAudio : NSObject
+@property (nonatomic) BOOL nativeProhibition;
+- (BOOL)pictureInPictureControllerShouldProhibitBackgroundAudioPlayback:(id)controller;
+@end
+@implementation NativePiPAudio
+- (BOOL)pictureInPictureControllerShouldProhibitBackgroundAudioPlayback:(id)controller {
+    (void)controller;
+    originalCalls++;
+    return self.nativeProhibition;
+}
+@end
+
+#if POLICY_VARIANT == 1 || POLICY_VARIANT == 3
+@interface MLPIPController : NativePiPAudio
+- (void)setProhibitsBackgroundAudioPlayback:(BOOL)prohibits;
+@end
+@implementation MLPIPController
+- (void)setProhibitsBackgroundAudioPlayback:(BOOL)prohibits { self.nativeProhibition = prohibits; }
+@end
+#endif
+
+#if POLICY_VARIANT >= 2
+@interface MLPIPControllerImpl : NativePiPAudio
+#if POLICY_VARIANT != 4
+- (void)setProhibitsBackgroundAudioPlayback:(BOOL)prohibits;
+#endif
+@end
+@implementation MLPIPControllerImpl
+#if POLICY_VARIANT != 4
+- (void)setProhibitsBackgroundAudioPlayback:(BOOL)prohibits { self.nativeProhibition = prohibits; }
+#endif
+@end
+#endif
 
 // 0: no policy, 1: legacy, 2: modern, 3: both, 4: selector removed.
 #if POLICY_VARIANT == 1 || POLICY_VARIANT == 3
@@ -93,15 +155,75 @@ static void checkPlaybackDecision(id object, SEL selector) {
     assert(!invoke(object, selector));
 }
 
+#if POLICY_VARIANT >= 1
+static void checkPiPDecision(NativePiPAudio *pip) {
+    for (NSUInteger enabled = 0; enabled < 2; enabled++) {
+        for (NSUInteger prohibits = 0; prohibits < 2; prohibits++) {
+            tweakEnabled = enabled;
+            pip.nativeProhibition = prohibits; // Include a stale cached prohibition.
+            originalCalls = 0;
+            assert([pip pictureInPictureControllerShouldProhibitBackgroundAudioPlayback:nil] == (!enabled && prohibits));
+            assert(originalCalls == (enabled ? 0 : 1));
+            if ([pip respondsToSelector:@selector(setProhibitsBackgroundAudioPlayback:)]) {
+                ((void (*)(id, SEL, BOOL))objc_msgSend)(pip, @selector(setProhibitsBackgroundAudioPlayback:), prohibits);
+                assert(pip.nativeProhibition == (!enabled && prohibits));
+            }
+        }
+    }
+}
+#endif
+
+// Host model of the two binary paths; this does not emulate iOS/AVKit hardware.
+#if POLICY_VARIANT >= 1 && POLICY_VARIANT <= 3
+static void checkLockScenarios(id<BackgroundPolicy> policy, NativePiPAudio *pip) {
+    for (NSUInteger startsInPiP = 0; startsInPiP < 2; startsInPiP++) {
+        tweakEnabled = YES;
+        nativeAllowed = NO;
+        YTSingleVideoController *video = [YTSingleVideoController new];
+        video.playbackData = [YTPlaybackData new];
+        video.policy = policy;
+        stateUpdates = 0;
+        [video setBackgroundingForcedDisabled:YES];
+        assert(!video.backgroundingForcedDisabled);
+        assert(video.currentlyBackgroundable);
+        assert(stateUpdates == 1); // Native recomputation/notifications still run.
+
+        BOOL playing = YES;
+        BOOL lockScreenPlayer = YES;
+        // Lock directly in-app, or lock after the PiP window appeared.
+        pip.nativeProhibition = YES;
+        BOOL stopForPiP = startsInPiP && [pip pictureInPictureControllerShouldProhibitBackgroundAudioPlayback:nil];
+        if (!video.currentlyBackgroundable || stopForPiP) {
+            playing = NO;
+            lockScreenPlayer = NO;
+        }
+        assert(playing && lockScreenPlayer);
+        tweakEnabled = NO;
+        nativeAllowed = YES;
+        [video setBackgroundingForcedDisabled:YES];
+        assert(video.backgroundingForcedDisabled && !video.currentlyBackgroundable);
+        [video setBackgroundingForcedDisabled:NO];
+        assert(!video.backgroundingForcedDisabled && video.currentlyBackgroundable);
+    }
+}
+#endif
+
 int main(void) {
     @autoreleasepool {
         checkPlaybackDecision([YTIPlayabilityStatus new], @selector(isPlayableInBackground));
         checkPlaybackDecision([MLVideo new], @selector(playableInBackground));
+        checkPlaybackDecision([YTPlaybackData new], @selector(isPlayableInBackground));
 
 #if POLICY_VARIANT == 1
         checkPlaybackDecision([YTBackgroundabilityPolicy new], @selector(isBackgroundableByUserSettings));
+        checkPiPDecision([MLPIPController new]);
+        checkLockScenarios((id)[YTBackgroundabilityPolicy new], [MLPIPController new]);
 #elif POLICY_VARIANT == 2 || POLICY_VARIANT == 3
         checkPlaybackDecision([YTBackgroundabilityPolicyImpl new], @selector(isBackgroundableByUserSettings));
+        checkPiPDecision([MLPIPControllerImpl new]);
+        checkLockScenarios((id)[YTBackgroundabilityPolicyImpl new], [MLPIPControllerImpl new]);
+#elif POLICY_VARIANT == 4
+        checkPiPDecision([MLPIPControllerImpl new]);
 #endif
 
 #if POLICY_VARIANT == 3
@@ -111,7 +233,7 @@ int main(void) {
         assert(![[YTBackgroundabilityPolicy new] isBackgroundableByUserSettings]);
 #endif
 
-        assert(installedHooks == ((POLICY_VARIANT >= 1 && POLICY_VARIANT <= 3) ? 3 : 2));
+        assert(installedHooks == ((POLICY_VARIANT >= 1 && POLICY_VARIANT <= 3) ? 7 : (POLICY_VARIANT == 4 ? 5 : 4)));
         printf("PASS: background playback policy variant %d\n", POLICY_VARIANT);
     }
     return 0;

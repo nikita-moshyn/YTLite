@@ -6,36 +6,35 @@ on:
       enable_youpip:
         type: boolean
         required: true
-        default: false
 
       enable_ytuhd:
         type: boolean
         required: true
-        default: false
 
       enable_yq:
         type: boolean
         required: true
-        default: false
 
       enable_ryd:
         type: boolean
         required: true
-        default: false
 
       enable_ytabc:
         type: boolean
         required: true
-        default: false
 
       enable_demc:
         type: boolean
         required: true
-        default: false
 
       enable_localization:
         type: boolean
-        required: true
+        required: false
+        default: false
+
+      enable_background_playback_fix:
+        type: boolean
+        required: false
         default: false
 
       tweak_version:
@@ -55,7 +54,24 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-        if: ${{ inputs.enable_localization }}
+        if: ${{ inputs.enable_localization || inputs.enable_background_playback_fix }}
+
+      - name: Set up Logos for background playback patch
+        if: ${{ inputs.enable_background_playback_fix }}
+        uses: actions/checkout@v6
+        with:
+          repository: theos/logos
+          ref: 365a4e7028234e90bc2cbc724e5c87607130d3b3
+          path: background-logos
+
+      - name: Test and build background playback patch from this branch
+        if: ${{ inputs.enable_background_playback_fix }}
+        env:
+          LOGOS: ${{ github.workspace }}/background-logos/bin/logos.pl
+        run: |
+          tests/run-background-playback.sh
+          python3 -m unittest discover -s tests -p 'test_*.py'
+          scripts/build-background-playback-fix.sh "$GITHUB_WORKSPACE/YTLBackgroundPlaybackFix.dylib"
 
       - name: Install Dependencies
         run: brew install make ldid dpkg
@@ -240,6 +256,7 @@ jobs:
           name: built-debs
           path: |
             *.deb
+            *.dylib
             *.appex
           if-no-files-found: ignore
           retention-days: 1

@@ -65,6 +65,8 @@ A flexible enhancer for YouTube on iOS, featuring over hundred customizable opti
 Review by [@qbap](https://github.com/qbap) on ONE Jailbreak: https://onejailbreak.com/blog/youtube-plus/
 
 ## How to build a YouTube Plus app using Github actions
+The **Create YouTube Plus app** workflow builds and injects this branch's background audio compatibility patch by default, including the direct-lock and PiP-to-lock paths. It verifies the patch is present in the resulting IPA before creating a release. Optional `extra_tweaks_urls` accepts additional `.deb`/`.dylib` download URLs. See [background playback validation and build details](tests/README.md).
+
 > [!NOTE]
 > If this your first time, complete following steps before starting:
 >
